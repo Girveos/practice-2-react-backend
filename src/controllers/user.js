@@ -6,6 +6,10 @@ const validateEmail = email => {
 };
 
 const createUser = async (req, res) => {
+    if (req.user.role !== "admin") {
+        return res.status(403).json({ message: "No tienes permiso para crear usuarios" });
+    }
+
     const new_user = user_model(req.body);
 
     if (!validateEmail(new_user.email)) {
@@ -27,7 +31,12 @@ const createUser = async (req, res) => {
     }
 };
 
+
 const listUsers = async (req, res) => {
+    if (req.user.role !== "admin") {
+        return res.status(403).json({ message: "No tienes permiso para acceder a esta función" });
+    }
+
     try {
         const data = await user_model.find();
         res.json(data);
@@ -37,7 +46,7 @@ const listUsers = async (req, res) => {
 };
 
 const listUser = async (req, res) => {
-    const { userId } =  req.params;
+    const userId = req.user.sub;
 
     try {
         const data = await user_model.find({ _id: userId });
@@ -60,10 +69,13 @@ const editUser = async (req, res) => {
         if (!userExists) {
             return res.status(400).json({ message: "Usuario no encontrado" });
         }
-
-        await user_model.updateOne(query, update);
-        const updatedUser = await user_model.findById(userId);
-        res.status(200).json(updatedUser);
+        if (req.user.role === "admin" || req.user.sub === userId) {
+            await user_model.updateOne(query, update);
+            const updatedUser = await user_model.findById(userId);
+            res.status(200).json(updatedUser);
+        } else {
+            res.status(403).json({ message: "No tienes permiso para editar este usuario" });
+        }
     } catch (err) {
         res.status(500).json({ message: err });
     }
@@ -78,11 +90,15 @@ const deleteUser = async (req, res) => {
         if (!userExists) {
             return res.status(400).json({ message: "Usuario no encontrado" });
         }
-
-        await user_model.deleteOne(query);
-        res.status(200).json({ message: "Usuario eliminado correctamente" });
+        if (req.user.role === "admin") {
+            await user_model.deleteOne(query);
+            
+            res.status(200).json({ message: "Usuario eliminado correctamente" });
+        } else {
+            res.status(403).json({ message: "No tienes permiso para eliminar este usuario" });
+        }
     } catch (err) {
-        res.status(500).json({ message: err });
+        res.status(500).json({ message: err +"no"});
     }
 };
 
