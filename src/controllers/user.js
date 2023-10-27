@@ -164,6 +164,24 @@ const editMe = async (req, res) => {
     }
 };
 
+const deleteMe = async (req, res) => {
+    const userId = req.user.user_id;
+    const query = { _id: userId };
+
+    try {
+        const userExists = await user_model.exists(query);
+        if (!userExists) {
+            return res.status(400).json({ message: "Usuario no encontrado" });
+        }
+
+        await user_model.deleteOne(query);
+        res.status(200).json({ message: "Usuario eliminado correctamente" });
+    } catch (err) {
+        res.status(500).json({ message: err });
+    }
+};
+
+
 const deleteUser = async (req, res) => {
     const userId = req.params.userId;
     const query = { _id: userId };
@@ -192,5 +210,6 @@ module.exports = {
     listMe,
     editUser,
     editMe,
+    deleteMe,
     deleteUser
 };
