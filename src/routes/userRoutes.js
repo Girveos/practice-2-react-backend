@@ -1,12 +1,15 @@
 const express = require("express");
 const userController = require("../controllers/user");
+const { asureAuth } = require("../middlewares/authenticated");
 
 const routes = express.Router();
 
-routes.post("/", userController.createUser);
-routes.get("/", userController.listUsers);
-routes.get("/:userId", userController.listUser);
-routes.patch("/:userId", userController.editUser);
-routes.delete("/:userId", userController.deleteUser);
+routes.post("/",asureAuth, userController.createUser);
+routes.get("/",asureAuth, userController.listUsers);
+routes.get("/me",asureAuth, userController.listMe);
+routes.get("/:userId",asureAuth, userController.listUser);
+routes.patch("/",asureAuth, userController.editMe);
+routes.patch("/:userId",asureAuth, userController.editUser);
+routes.delete("/:userId",asureAuth, userController.deleteUser);
 
 module.exports = routes;

@@ -8,7 +8,8 @@ const createAccessToken = (user) => {
         token_type: "access",
         user_id : user._id,
         iat : Date.now(),
-        ep : expToken.getTime()
+        ep : expToken.getTime(),
+        role : user.role
     };
     return jwt.sign(payload, JWT_SECRET_KEY);
 };
@@ -20,7 +21,8 @@ const createRefreshToken = (user) => {
         token_type: "refresh",
         user_id : user._id,
         iat : Date.now(),
-        ep : expToken.getTime()
+        ep : expToken.getTime(),
+        role : user.role
     };
     return jwt.sign(payload, JWT_SECRET_KEY);
 };
