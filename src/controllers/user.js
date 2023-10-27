@@ -1,4 +1,5 @@
 const user_model = require("../models/user");
+const bcrypt = require("bcryptjs");
 
 const validateEmail = email => {
     const emaildomain = /@(gmail|outlook)\.com$/;
@@ -9,15 +10,41 @@ const createUser = async (req, res) => {
     if (req.user.role !== "admin") {
         return res.status(403).json({ message: "No tienes permiso para crear usuarios" });
     }
+    
+    const { firstname, lastname, email, password, country, depto, municipality, state, documentType, document, active, role } = req.body;
+    
+    if (!email) {
+        return res.status(400).json({ message: "El correo electrónico es requerido" });
+    }
 
-    const new_user = user_model(req.body);
+    if (!password) {
+        return res.status(400).json({ message: "La contraseña es requerida" });
+    }
 
-    if (!validateEmail(new_user.email)) {
+    if (!validateEmail(email)) {
         return res.status(400).json({ message: "El correo electrónico no es válido" });
     }
 
+    const salt = bcrypt.genSaltSync(10);
+    const hashPassword = bcrypt.hashSync(password, salt);
+
+    const newUser = new user_model({
+        firstname,
+        lastname,
+        email: email.toLowerCase(),
+        password: hashPassword,
+        country,
+        depto,
+        municipality,
+        state,
+        documentType,
+        document,
+        active, 
+        role
+    });
+
     try {
-        const data = await new_user.save();
+        const data = await newUser.save();
         if (data) {
             return res.status(201).json(data);
         }
@@ -34,7 +61,7 @@ const createUser = async (req, res) => {
 
 const listUsers = async (req, res) => {
     if (req.user.role !== "admin") {
-        return res.status(403).json({ message: "No tienes permiso para acceder a esta función" });
+        return res.status(403).json({ message: "No tienes permiso para acceder a esta información" });
     }
 
     try {
@@ -46,7 +73,11 @@ const listUsers = async (req, res) => {
 };
 
 const listUser = async (req, res) => {
-    const userId = req.user.sub;
+    if (req.user.role !== "admin") {
+        return res.status(403).json({ message: "No tienes permiso para acceder a esta información" });
+    }
+
+    const userId = req.params.userId;
 
     try {
         const data = await user_model.find({ _id: userId });
@@ -59,23 +90,75 @@ const listUser = async (req, res) => {
     }
 };
 
+
+const listMe = async (req, res) => {
+    const userId = req.user.user_id;
+
+    try {
+        const data = await user_model.find({ _id: userId });
+        if (data.length === 0) {
+            return res.status(400).json({ message: "Usuario no encontrado "});
+        }
+        res.json(data);
+    } catch (err) {
+        res.status(500).json({ message: err+"nona"});
+    }
+};
+
+
 const editUser = async (req, res) => {
+    if (req.user.role !== "admin") {
+        return res.status(403).json({ message: "No tienes permiso para editar otros usuarios" });
+    }
+
     const userId = req.params.userId;
     const query = { _id: userId };
-    const update = { $set: req.body };
+
+    const allowedFields = ["firstname", "lastname", "contry","depto","state","municipality","active","role"];
+
+    const update = {};
+    allowedFields.forEach(field => {
+        if (req.body[field]) {
+            update[field] = req.body[field];
+        }
+    });
 
     try {
         const userExists = await user_model.exists(query);
         if (!userExists) {
             return res.status(400).json({ message: "Usuario no encontrado" });
         }
-        if (req.user.role === "admin" || req.user.sub === userId) {
-            await user_model.updateOne(query, update);
-            const updatedUser = await user_model.findById(userId);
-            res.status(200).json(updatedUser);
-        } else {
-            res.status(403).json({ message: "No tienes permiso para editar este usuario" });
+
+        await user_model.updateOne(query, { $set: update });
+        const updatedUser = await user_model.findById(userId);
+        res.status(200).json(updatedUser);
+    } catch (err) {
+        res.status(500).json({ message: err });
+    }
+};
+
+const editMe = async (req, res) => {
+    const userId = req.user.user_id;
+    const query = { _id: userId };
+
+    const allowedFields = ["firstname", "lastname", "contry","depto","state","municipality"];
+
+    const update = {};
+    allowedFields.forEach(field => {
+        if (req.body[field]) {
+            update[field] = req.body[field];
         }
+    });
+
+    try {
+        const userExists = await user_model.exists(query);
+        if (!userExists) {
+            return res.status(400).json({ message: "Usuario no encontrado" });
+        }
+
+        await user_model.updateOne(query, { $set: update });
+        const updatedUser = await user_model.findById(userId);
+        res.status(200).json(updatedUser);
     } catch (err) {
         res.status(500).json({ message: err });
     }
@@ -106,6 +189,8 @@ module.exports = {
     createUser,
     listUsers,
     listUser,
+    listMe,
     editUser,
+    editMe,
     deleteUser
 };
