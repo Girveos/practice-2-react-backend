@@ -2,31 +2,58 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/user");
 const jwt = require("../utils/jwt");
 
-const registrer = async (req, res) => {
-    const { firstname, lastname, email, password} = req.body;
+
+const register = async (req, res) => {
+    const {
+        firstname,
+        lastname,
+        email,
+        password,
+        country,
+        depto,
+        municipality,
+        state,
+        documentType,
+        document,
+    } = req.body;
 
     if (!email) return res.status(400).send({ msg: "El email es requerido" });
-    if (!password)
-    return res.status(400).send({ msg: "La contraseña es requerido" });
-
-    const salt = bcrypt.genSaltSync(10);
-    const hashPassword = bcrypt.hashSync(password, salt);
-    
-    const user = new User({
-    firstname,
-    lastname,
-    email: email.toLowerCase(),
-    active: false,
-    password: hashPassword,
-    });
+    if (!password) return res.status(400).send({ msg: "La contraseña es requerida" });
 
     try {
-    const userStorage = await user.save();
-    res.status(201).send(userStorage);
+        const existingUser = await User.findOne({ email: email });
+
+        if (existingUser) {
+            return res.status(400).send({ msg: "Ya existe un usuario con ese email" });
+        }
+        
+        const existingUser2 = await User.findOne({ document: document });
+        if (existingUser2) {
+            return res.status(400).send({ msg: "Ya existe un usuario con ese documento" });
+        }
+        const salt = bcrypt.genSaltSync(10);
+        const hashPassword = bcrypt.hashSync(password, salt);
+
+        const user = new User({
+            firstname,
+            lastname,
+            email: email.toLowerCase(),
+            password: hashPassword,
+            country,
+            depto,
+            municipality,
+            state,
+            documentType,
+            document,
+        });
+
+        const userStorage = await user.save();
+        res.status(201).send(userStorage);
     } catch (error) {
-    res.status(400).send({ msg: "Error al crear el usuario"+ error });
+        res.status(400).send({ msg: "Error al crear el usuario: " + error });
     }
 };
+
 
 const login = async (req, res) => {
     const { email, password } = req.body;
@@ -73,7 +100,7 @@ const refreshAccessToken = (req, res) => {
 
 
 module.exports = {
-    registrer,
-    login,
-    refreshAccessToken,
-  };
+  register,
+  login,
+  refreshAccessToken,
+};
